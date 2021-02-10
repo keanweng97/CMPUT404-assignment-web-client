@@ -35,6 +35,7 @@ class HTTPResponse(object):
 class HTTPClient(object):
     #def get_host_port(self,url):
 
+    # get IP of host, taken from Lab 2, unchanged if host is already IP
     def get_remote_ip(self, host):
         try:
             remote_ip = socket.gethostbyname(host)
@@ -43,12 +44,23 @@ class HTTPClient(object):
             sys.exit()
         return remote_ip
 
+    # convert POST data from dict to POST body format, returns '' if there is
+    # no POST data
+    def get_post_body(self, data):
+        body = []
+        if data:
+            for key in sorted(data):
+                body.append(f"{key}={data[key]}")
+        return '&'.join(body)
+
     def connect(self, host, port):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # get IP of host
         host = self.get_remote_ip(host)
         self.socket.connect((host, port))
         return None
 
+    # split response to get HTTP status code
     def get_code(self, data):
         data = data.split('\r\n\r\n')
         header = data[0]
@@ -59,11 +71,13 @@ class HTTPClient(object):
 
         return code
 
+    # split response to get HTTP header
     def get_headers(self, data):
         data = data.split('\r\n\r\n')
         header = data[0]
         return header
 
+    # split response to get HTTP body
     def get_body(self, data):
         data = data.split('\r\n\r\n')
         body = data[1]
@@ -92,28 +106,36 @@ class HTTPClient(object):
         body = ""
         port = 80
         path = '/'
+        # using urllib.parse to parse url
         o = urllib.parse.urlparse(url)
-        # print(o)
+        # if no port is specified, it will be None, default to port 80 for HTTP
         if o.port:
             port = o.port
+        # if no path is specified, it will be None, default to '/'
         if o.path:
             path = o.path
 
         self.connect(o.hostname, port)
 
-        header = (
+        # request header
+        request = (
             f"GET {path} HTTP/1.1\r\n"
             f"Host: {o.netloc}\r\n"
             f"User-Agent: CMPUT 404 HTTP Client\r\n"
             f"Accept: */*\r\n\r\n"
         )
 
-        self.sendall(header)
+        # send response, recieve request close socket
+        self.sendall(request)
         response = self.recvall(self.socket)
-        # print(repr(response))
+        self.close()
+
         code = self.get_code(response)
+        header = self.get_headers(response)
         body = self.get_body(response)
 
+        # print result to stdout
+        print(header + '\n')
         print(body)
 
         return HTTPResponse(code, body)
@@ -121,6 +143,46 @@ class HTTPClient(object):
     def POST(self, url, args=None):
         code = 500
         body = ""
+        port = 80
+        path = '/'
+        # using urllib.parse to parse url
+        o = urllib.parse.urlparse(url)
+        # if no port is specified, it will be None, default to port 80 for HTTP
+        if o.port:
+            port = o.port
+        # if no path is specified, it will be None, default to '/'
+        if o.path:
+            path = o.path
+
+        self.connect(o.hostname, port)
+
+        # convert to POST body format and count length in byte
+        # length = 0 if no POST data
+        request_body = self.get_post_body(args)
+        length = len(request_body.encode('utf-8'))
+
+        header = (
+            f"POST {path} HTTP/1.1\r\n"
+            f"Host: {o.netloc}\r\n"
+            f"User-Agent: CMPUT 404 HTTP Client\r\n"
+            f"Accept: */*\r\n"
+            f"Content-Length: {length}\r\n"
+            f"Content-Type: application/x-www-form-urlencoded\r\n\r\n"
+        )
+
+        # send response, recieve request close socket
+        request = header + request_body
+        self.sendall(request)
+        response = self.recvall(self.socket)
+
+        code = self.get_code(response)
+        header = self.get_headers(response)
+        body = self.get_body(response)
+        
+        # print result to stdout
+        print(header + '\n')
+        print(body)
+        
         return HTTPResponse(code, body)
 
     def command(self, url, command="GET", args=None):
