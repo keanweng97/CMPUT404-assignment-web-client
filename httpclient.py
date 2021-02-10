@@ -99,7 +99,7 @@ class HTTPClient(object):
                 buffer.extend(part)
             else:
                 done = not part
-        return buffer.decode('utf-8')
+        return buffer.decode('utf-8', "replace")
 
     def GET(self, url, args=None):
         code = 500
@@ -122,6 +122,7 @@ class HTTPClient(object):
             f"GET {path} HTTP/1.1\r\n"
             f"Host: {o.netloc}\r\n"
             f"User-Agent: CMPUT 404 HTTP Client\r\n"
+            f"Connection: close\r\n"
             f"Accept: */*\r\n\r\n"
         )
 
@@ -165,6 +166,7 @@ class HTTPClient(object):
             f"POST {path} HTTP/1.1\r\n"
             f"Host: {o.netloc}\r\n"
             f"User-Agent: CMPUT 404 HTTP Client\r\n"
+            f"Connection: close\r\n"
             f"Accept: */*\r\n"
             f"Content-Length: {length}\r\n"
             f"Content-Type: application/x-www-form-urlencoded\r\n\r\n"
