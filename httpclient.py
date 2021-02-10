@@ -35,19 +35,39 @@ class HTTPResponse(object):
 class HTTPClient(object):
     #def get_host_port(self,url):
 
+    def get_remote_ip(self, host):
+        try:
+            remote_ip = socket.gethostbyname(host)
+        except socket.gaierror:
+            print("Hostname could not be resolved. Exiting...")
+            sys.exit()
+        return remote_ip
+
     def connect(self, host, port):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        host = self.get_remote_ip(host)
         self.socket.connect((host, port))
         return None
 
     def get_code(self, data):
-        return None
+        data = data.split('\r\n\r\n')
+        header = data[0]
+        body = data[1]
 
-    def get_headers(self,data):
-        return None
+        status_line = header.split('\r\n')[0]
+        code = int(status_line.split()[1])
+
+        return code
+
+    def get_headers(self, data):
+        data = data.split('\r\n\r\n')
+        header = data[0]
+        return header
 
     def get_body(self, data):
-        return None
+        data = data.split('\r\n\r\n')
+        body = data[1]
+        return body
     
     def sendall(self, data):
         self.socket.sendall(data.encode('utf-8'))
@@ -70,6 +90,32 @@ class HTTPClient(object):
     def GET(self, url, args=None):
         code = 500
         body = ""
+        port = 80
+        path = '/'
+        o = urllib.parse.urlparse(url)
+        # print(o)
+        if o.port:
+            port = o.port
+        if o.path:
+            path = o.path
+
+        self.connect(o.hostname, port)
+
+        header = (
+            f"GET {path} HTTP/1.1\r\n"
+            f"Host: {o.netloc}\r\n"
+            f"User-Agent: CMPUT 404 HTTP Client\r\n"
+            f"Accept: */*\r\n\r\n"
+        )
+
+        self.sendall(header)
+        response = self.recvall(self.socket)
+        # print(repr(response))
+        code = self.get_code(response)
+        body = self.get_body(response)
+
+        print(body)
+
         return HTTPResponse(code, body)
 
     def POST(self, url, args=None):
