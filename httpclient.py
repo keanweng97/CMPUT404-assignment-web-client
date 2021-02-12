@@ -47,16 +47,12 @@ class HTTPClient(object):
     # convert POST data from dict to POST body format, returns '' if there is
     # no POST data
     def get_post_body(self, data):
-        body = []
-        if data:
-            for key in sorted(data):
-                body.append(f"{key}={data[key]}")
-        return '&'.join(body)
+        return urllib.parse.urlencode(data)
 
     def connect(self, host, port):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         # get IP of host
-        host = self.get_remote_ip(host)
+        # host = self.get_remote_ip(host)
         self.socket.connect((host, port))
         return None
 
@@ -99,7 +95,7 @@ class HTTPClient(object):
                 buffer.extend(part)
             else:
                 done = not part
-        return buffer.decode('utf-8', "replace")
+        return buffer.decode('latin-1')
 
     def GET(self, url, args=None):
         code = 500
@@ -115,7 +111,11 @@ class HTTPClient(object):
         if o.path:
             path = o.path
 
-        self.connect(o.hostname, port)
+        if o.hostname:
+            self.connect(o.hostname, port)
+        else:
+            print("Host name is invalid, please check!")
+            sys.exit()
 
         # request header
         request = (
@@ -123,7 +123,8 @@ class HTTPClient(object):
             f"Host: {o.netloc}\r\n"
             f"User-Agent: CMPUT 404 HTTP Client\r\n"
             f"Connection: close\r\n"
-            f"Accept: */*\r\n\r\n"
+            f"Accept: */*\r\n"
+            f"Accept-Charset: utf-8\r\n\r\n"
         )
 
         # send response, recieve request close socket
@@ -155,11 +156,18 @@ class HTTPClient(object):
         if o.path:
             path = o.path
 
-        self.connect(o.hostname, port)
+        if o.hostname:
+            self.connect(o.hostname, port)
+        else:
+            print("Host name is invalid, please check!")
+            sys.exit()
 
         # convert to POST body format and count length in byte
         # length = 0 if no POST data
-        request_body = self.get_post_body(args)
+        if args:
+            request_body = self.get_post_body(args)
+        else:
+            request_body = self.get_post_body({})
         length = len(request_body.encode('utf-8'))
 
         header = (
@@ -168,6 +176,7 @@ class HTTPClient(object):
             f"User-Agent: CMPUT 404 HTTP Client\r\n"
             f"Connection: close\r\n"
             f"Accept: */*\r\n"
+            f"Accept-Charset: utf-8\r\n"
             f"Content-Length: {length}\r\n"
             f"Content-Type: application/x-www-form-urlencoded\r\n\r\n"
         )
